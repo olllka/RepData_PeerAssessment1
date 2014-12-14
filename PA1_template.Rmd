@@ -1,25 +1,112 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Activity monitoring analyses"
+output: html_document
 ---
 
 
-## Loading and preprocessing the data
+Before performing analyses, read the data from the file:
+
+First issue is calculating total number of steps taken each day. To get required value we'll aggregate dataset ignoring (as long as it is allowed) NA values.
+
+```{r}
+setwd("~/RCoursera/Reproducible Research/CP_Reproducible_1")
+data <- read.csv("activity.csv", stringsAsFactors=FALSE)
+data[,2] <- as.POSIXct(data[,2], format="%Y-%m-%d")
+data_a <- aggregate(data[,"steps"], list (Data = data$date), sum)
+```
+
+The histogram:
+
+```{r}
+hist(data_a$x, main = "Total number of steps taken per day", xlab = "Number of steps", col = 'blue')
+```
+
+Mean number of steps taken per day is following:
+
+```{r echo = TRUE}
+mean_steps <- mean(na.omit(data_a$x))
+mean_steps
+```
 
 
+Median for number of steps taken per day is following:
 
-## What is mean total number of steps taken per day?
-
-
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
+```{r}
+median_steps <- median(data_a$x, na.rm = TRUE)
+median_steps
+```
 
 
+To find the total number of steps for each of 5-minute intervals we'll create dataset without missing values using na.omit function:
 
-## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+data_clean <- na.omit(data)
+data_b <- aggregate(data_clean[,"steps"], list (Interval = data_clean$interval), mean)
+```
+
+```{r}
+plot(data_b$x, type = "l", ylab = "Number of steps", xlab = "5-minute interval")
+```
+
+Making an ordered dataframe to identify the interval with maximum number of steps
+
+```{r}
+b_sorted <- data_b[with(data_b, order(data_b$x, data_b$Interval, decreasing = TRUE)),]
+b_sorted[1,"Interval"]
+```
+
+Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+In order to do this we just need to find the difference between clean dataset "data_clean"  with omitted NAs and initial dataset "data@
+```{r}
+delta <- nrow(data) - nrow(data_clean)
+delta
+```
+
+Creating a copy of initial dataset "data_full" for replacing missing values.
+Replacing each missing value for steps with the average number of steps for the corresponding 5 minute interval. Required values are already stored in data_b dataset.
+
+```{r}
+data_full <- data
+for (i in 1:nrow(data_full)) if (is.na(data_full[i,"steps"])) data_full[i,"steps"] <- data_b$x[data_b$Interval == data_full[i,"interval"]] 
+head(data_full)
+```
+
+Plotting a histogram, calculating total number of steps for processed dataset.
+```{r}
+data_a_full <- aggregate(data_full[,"steps"], list (Data = data_full$date), sum)
+hist(data_a_full$x, main = "Total number of steps taken per day", xlab = "Number of steps", col = 'purple')
+```
+
+Calculating mean number of steps for full dataset
+
+```{r}
+mean_steps_full <- mean(data_a_full$x)
+mean_steps_full
+```
+
+Calculating median for number of steps for full dataset
+```{r}
+median_steps_full <- median(data_a_full$x, na.rm = TRUE)
+```
+
+
+In order to indicate weekdays and weekend we'll first create vector, containing names of every week day. Then we'll code them considering these names as "weekend" or "weekday" and transorm into factor variables. The last step is adding this vector to our dataset. 
+
+```{r}
+wd <- weekdays(data_full$date)
+for (i in 1:length(wd)) if (wd[i] == "суббота" | wd[i] == "воскресенье") wd[i] <- "weekend" else wd[i] <- "weekday"
+wd <- as.factor(wd)
+data_days <- cbind(data_full, wd)
+data_days_ag <- aggregate(data_days[,"steps"], list (Int = data_days$interval, DT = data_days$wd), sum)
+head(data_days_ag)
+```
+
+We have gotten the following plots:
+
+```{r}
+with (data_days_ag, 
+      {plot(data_days_ag$x[DT == "weekday"], type = "l", xlab = "Interval - at weekdays", ylab = "Number of steps", col = "blue")
+       plot(data_days_ag$x[DT == "weekend"], type = "l",  xlab = "Interval - at weekens", ylab = "Number of steps", col = "red")
+       }
+      )
+```
